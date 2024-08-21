@@ -7,6 +7,7 @@ import json
 import os 
 from logger import log
 from dotenv import load_dotenv
+import queue
 
 app = Flask(__name__)
 CORS(app)
@@ -32,10 +33,17 @@ def format_doc():
     reciever_url = os.getenv('RECIEVER_URL')
     log.info(f"Sending to receiver url: {reciever_url}")
     
+    fifo_queue = queue.Queue()
+
     for data in array_data:
         log.info(f"Payload: {data}")
-        response = requests.post(reciever_url, json=data)
+        fifo_queue.put(data)
     
+    log.info("Queueing payload data")
+    while not fifo_queue.empty():
+        queued_data = fifo_queue.get() 
+        response = requests.post(reciever_url, json=queued_data)
+
     if response.status_code == 200:
         log.success("Successfully sent")
         return jsonify({'message': 'File successfully uploaded and processed'}), 200
