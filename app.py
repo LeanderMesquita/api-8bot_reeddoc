@@ -15,17 +15,26 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 app = Flask(__name__)
 CORS(app)
 
+load_dotenv()
+reciever_url = os.getenv('RECIEVER_URL')
+
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def send_to_receiver(reciever_url, data):
     try:
-        log.info(f"Sending data: {data}")
         response = requests.post(reciever_url, json=data)
-        #log.info(f"Received response: {response.status_code}, {response.text}")
-        #response.raise_for_status()
+        
+        text = response.text if response.text != '' else 'OK'
+        
+        log.info(f"Received response: {response.status_code}, {text}")
+       
         return response
     except Exception as e:
         log.error(f"Failed to send data. Error: {e}")
         return None
+
+
+def chunk_data(data, size): return [data[i:i + size] for i in range(0, len(data), size)]
+
 
 @app.route('/format', methods=['POST'])
 def format_doc():
@@ -44,14 +53,14 @@ def format_doc():
     df = pd.read_excel(file, dtype=str)
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
       
-    load_dotenv()
-    reciever_url = os.getenv('RECIEVER_URL')
+    chunked_data = chunk_data(array_data, 500)
+    payloads = [{"payload": [{"method": "POST", "body": data} for data in chunk]} for chunk in chunked_data]
+    
     log.info(f"Sending to receiver url: {reciever_url}")
     
- 
     fifo_queue = queue.Queue()
-    for data in array_data:
-        fifo_queue.put(data)
+    for payload in payloads:
+        fifo_queue.put(payload)
     
     log.info("Queueing payload data")
     
