@@ -43,6 +43,10 @@ def format_doc():
         log.error("No file selected")
         return jsonify({'error': 'No file selected'}), 400
     
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext != '.xlsx': return jsonify({'error': 'incorrect file type'}), 406
+
+    
     filename = secure_filename(file.filename)
     log.info(f"Received file: {filename}")
     
