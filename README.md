@@ -63,6 +63,13 @@ A API serve como uma "Estação de Tratamento", onde o cliente insere uma planil
    flask run
    ```
 
+#### Rotas Disponíveis
+  A api consta com uma única rota via POST:
+  ```bash
+  <api-domain>/format
+  ```
+
+
 ---
 
 ## Description
@@ -106,3 +113,8 @@ The API serves as a "Treatment Station," where the client uploads a spreadsheet 
    ```bash
    flask run
    ```
+### Avaliable routes
+  The api has a single route via POST:
+  ```bash
+  <api-domain>/format
+  ```
