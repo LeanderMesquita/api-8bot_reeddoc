@@ -113,7 +113,7 @@ The API serves as a "Treatment Station," where the client uploads a spreadsheet 
    ```bash
    flask run
    ```
-### Avaliable routes
+### Available Routes
   The api has a single route via POST:
   ```bash
   <api-domain>/format
