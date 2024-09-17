@@ -54,7 +54,7 @@ def format_doc():
 
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
 
-    chunked_data = chunk_data(array_data, 1000)
+    chunked_data = chunk_data(array_data, 500)
 
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -75,7 +75,9 @@ def format_doc():
         
         for future in as_completed(futures):
             response = future.result()
-            if response and response.status_code != 200:
+        
+            if response.status_code != 201:
+               
                 log.error(f"Failed to send data. Response text: {response.text}, Response status code: {response.status_code}")
                 return jsonify({'error': 'Failed to send data', 'details': response.text}), response.status_code
     
