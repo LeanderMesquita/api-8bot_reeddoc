@@ -19,10 +19,7 @@ max_workers = os.cpu_count()
 
 def send_to_receiver(reciever_url, data):
     try:
-        response = requests.post(reciever_url, json=data)
-        text = response.text if response.text != '' else 'OK'
-        log.info(f"Received response: {response.status_code}, {text}")
-        return response
+        return requests.post(reciever_url, json=data)
     except Exception as e:
         log.error(f"Failed to send data. Error: {e}")
         return None
@@ -68,6 +65,9 @@ def format_doc():
         fifo_queue.put(payload)
 
     log.info(f"Sending to receiver url: {reciever_url}")
+    
+    all_responses = []
+    
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         while not fifo_queue.empty():
@@ -77,9 +77,12 @@ def format_doc():
         for future in as_completed(futures):
             response = future.result()
         
-            if response.status_code != 201:
+            if response.status_code != 202:
                 details_json = json.loads(response.text)
-                return jsonify({'error': 'Failed to send data', 'details': details_json}), response.status_code
+                all_responses.append({'error': 'Failed to send data', 'details': details_json})
+            else:
+                all_responses.append({'message': 'Success', "details": {"accepted": "true"}})
     
+
     log.success("Successfully sent")
-    return jsonify({'message': 'File successfully uploaded and processed'}), 200
+    return jsonify({"responses": all_responses}), 200
