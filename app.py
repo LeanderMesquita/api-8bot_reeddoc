@@ -8,6 +8,7 @@ from logger import log
 from dotenv import load_dotenv
 import queue
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -54,7 +55,7 @@ def format_doc():
 
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
 
-    chunked_data = chunk_data(array_data, 500)
+    chunked_data = chunk_data(array_data, 10)
 
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -77,9 +78,8 @@ def format_doc():
             response = future.result()
         
             if response.status_code != 201:
-               
-                log.error(f"Failed to send data. Response text: {response.text}, Response status code: {response.status_code}")
-                return jsonify({'error': 'Failed to send data', 'details': response.text}), response.status_code
+                details_json = json.loads(response.text)
+                return jsonify({'error': 'Failed to send data', 'details': details_json}), response.status_code
     
     log.success("Successfully sent")
     return jsonify({'message': 'File successfully uploaded and processed'}), 200
