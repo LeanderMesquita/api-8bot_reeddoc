@@ -52,12 +52,12 @@ def format_doc():
 
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
 
-    chunked_data = chunk_data(array_data, 10)
+    chunked_data = chunk_data(array_data, 100)
 
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         payloads = list(executor.map(process_payload, chunked_data))
-
+    
     log.info("Queueing payload data")
     
     fifo_queue = queue.Queue()
@@ -86,3 +86,7 @@ def format_doc():
 
     log.success("Successfully sent")
     return jsonify({"responses": all_responses}), 200
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
