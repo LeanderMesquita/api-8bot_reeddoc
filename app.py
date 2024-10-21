@@ -2,9 +2,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import pandas as pd 
-import requests
 import os 
-from logger import log
+from src.functions.chunk_data import chunk_data
+from src.functions.process_payload import process_payload
+from src.functions.send_to_receiver import send_to_receiver
+from src.logger.logger import log
 from dotenv import load_dotenv
 import queue
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,21 +19,10 @@ load_dotenv()
 reciever_url = os.getenv('RECIEVER_URL')
 max_workers = os.cpu_count()
 
-def send_to_receiver(reciever_url, data):
-    try:
-        return requests.post(reciever_url, json=data)
-    except Exception as e:
-        log.error(f"Failed to send data. Error: {e}")
-        return None
-
-def chunk_data(data, size):
-    return [data[i:i + size] for i in range(0, len(data), size)]
-
-def process_payload(chunk):
-    return {"payload": [{"method": "POST", "body": data} for data in chunk]}
 
 @app.route('/format', methods=['POST'])
 def format_doc():
+    
     if 'file' not in request.files:
         log.error("No file part")
         return jsonify({'error': 'No file part'}), 400
@@ -44,16 +35,16 @@ def format_doc():
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext != '.xlsx': return jsonify({'error': 'incorrect file type'}), 406
 
-    
     filename = secure_filename(file.filename)
     log.info(f"Received file: {filename}")
     
+    ##
+    
     df = pd.read_excel(file, dtype=str)
-
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
-
     chunked_data = chunk_data(array_data, 100)
 
+    ##
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         payloads = list(executor.map(process_payload, chunked_data))

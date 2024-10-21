@@ -2,13 +2,11 @@ import os
 import queue
 from dotenv import load_dotenv
 import pandas as pd
-from logger import log
+from src.logger.logger import log
 import time
 
 load_dotenv()
 reciever_url = os.getenv('RECIEVER_URL')
-
-
 start_time = time.time()
 
 file = "c:/Users/Leander Mesquita/Downloads/generated_collaborators_2000_unique_emails_v2.xlsx"
