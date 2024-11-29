@@ -46,6 +46,7 @@ def format_doc():
 
     log.info(f"MAX_WORKERS: {max_workers}")
     log.info(f"CHUNK SIZE: {chunk_size}")
+    log.info(f"DATAFRAME SIZE: {len(df)}")
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         payloads = list(executor.map(process_payload, chunked_data))
@@ -57,8 +58,8 @@ def format_doc():
         fifo_queue.put(payload)
 
     log.info(f"Sending to receiver url: {receiver_url}")
-    
     all_responses = []
+    all_status_codes = []
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
@@ -85,7 +86,7 @@ def format_doc():
                     all_responses.append({'message': 'Success', "details": {"accepted": "true"}})
 
                 all_status_codes = [response.get("status_code") for response in all_responses if "status_code" in response]
-                all_responses.append({"http codes": all_status_codes})
+
             except Exception as e:
                 log.error(f"Exception occurred during send_to_receiver: {str(e)}")
                 all_responses.append({
@@ -93,6 +94,7 @@ def format_doc():
                     'details': str(e)
                 })
 
+    all_responses.append({"http codes": all_status_codes})
     log.success(f"Finished processing! response codes: {all_status_codes}")
     return jsonify({"responses": all_responses}), 207
 
