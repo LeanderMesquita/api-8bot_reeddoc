@@ -83,7 +83,7 @@ def format_doc():
                         'details': details_json
                     })
                 else:
-                    all_responses.append({'message': 'Success', "details": {"accepted": "true"}})
+                    all_responses.append({'message': 'Success', "details": {"accepted": "true"}, 'status_code': response.status_code})
 
                 all_status_codes = [response.get("status_code") for response in all_responses if "status_code" in response]
 
@@ -94,7 +94,7 @@ def format_doc():
                     'details': str(e)
                 })
 
-    all_responses.append({"http codes": all_status_codes})
+    all_responses.append({"http_codes": all_status_codes})
     log.success(f"Finished processing! response codes: {all_status_codes}")
     return jsonify({"responses": all_responses}), 207
 
