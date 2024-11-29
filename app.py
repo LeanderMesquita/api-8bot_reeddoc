@@ -16,7 +16,9 @@ app = Flask(__name__)
 CORS(app)
 
 load_dotenv()
-reciever_url = os.getenv('RECIEVER_URL')
+receiver_url = os.getenv('RECEIVER_URL')
+chunk_size_env = os.getenv('CHUNK_SIZE')
+chunk_size = int(chunk_size_env)
 max_workers = os.cpu_count()
 
 
@@ -38,13 +40,12 @@ def format_doc():
     filename = secure_filename(file.filename)
     log.info(f"Received file: {filename}")
     
-    ##
-    
     df = pd.read_excel(file, dtype=str)
     array_data = df.where(pd.notnull(df), None).to_dict(orient="records")
-    chunked_data = chunk_data(array_data, 100)
+    chunked_data = chunk_data(array_data, chunk_size)
 
-    ##
+    log.info(f"MAX_WORKERS: {max_workers}")
+    log.info(f"CHUNK SIZE: {chunk_size}")
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         payloads = list(executor.map(process_payload, chunked_data))
@@ -55,28 +56,45 @@ def format_doc():
     for payload in payloads:
         fifo_queue.put(payload)
 
-    log.info(f"Sending to receiver url: {reciever_url}")
+    log.info(f"Sending to receiver url: {receiver_url}")
     
     all_responses = []
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         while not fifo_queue.empty():
+            log.info("Receiving queued data")
             queued_data = fifo_queue.get()
-            futures.append(executor.submit(send_to_receiver, reciever_url, queued_data))
-        
-        for future in as_completed(futures):
-            response = future.result()
-        
-            if response.status_code != 202:
-                details_json = json.loads(response.text)
-                all_responses.append({'error': 'Failed to send data', 'details': details_json})
-            else:
-                all_responses.append({'message': 'Success', "details": {"accepted": "true"}})
-    
+            futures.append(executor.submit(send_to_receiver, receiver_url, queued_data))
 
-    log.success("Successfully sent")
-    return jsonify({"responses": all_responses}), 200
+        for future in as_completed(futures):
+            try:
+                response = future.result()
+                if response.status_code != 202:
+                    try:
+                        details_json = json.loads(response.text)
+                    except json.JSONDecodeError:
+                        details_json = {"error": "Invalid JSON response", "response_text": response.text}
+
+                    all_responses.append({
+                        'error': 'Failed to send data',
+                        'status_code': response.status_code,
+                        'details': details_json
+                    })
+                else:
+                    all_responses.append({'message': 'Success', "details": {"accepted": "true"}})
+
+                all_status_codes = [response.get("status_code") for response in all_responses if "status_code" in response]
+                all_responses.append({"http codes": all_status_codes})
+            except Exception as e:
+                log.error(f"Exception occurred during send_to_receiver: {str(e)}")
+                all_responses.append({
+                    'error': 'Exception occurred during processing',
+                    'details': str(e)
+                })
+
+    log.success(f"Finished processing! response codes: {all_status_codes}")
+    return jsonify({"responses": all_responses}), 207
 
 
 if __name__ == "__main__":
