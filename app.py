@@ -1,3 +1,4 @@
+from functools import partial
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -22,7 +23,7 @@ chunk_size = int(chunk_size_env)
 max_workers = os.cpu_count()
 
 
-@app.route('/format', methods=['POST'])
+@app.route('/import', methods=['POST'])
 def format_doc():
     
     if 'file' not in request.files:
@@ -37,6 +38,9 @@ def format_doc():
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext != '.xlsx': return jsonify({'error': 'incorrect file type'}), 406
 
+    if not request.form['resource_type']:
+        return jsonify({'error': 'no body content'}), 400
+
     filename = secure_filename(file.filename)
     log.info(f"Received file: {filename}")
     
@@ -48,8 +52,11 @@ def format_doc():
     log.info(f"CHUNK SIZE: {chunk_size}")
     log.info(f"DATAFRAME SIZE: {len(df)}")
     
+    partial_process_payload = partial(process_payload, resource_type=request.form['resource_type'])
+
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        payloads = list(executor.map(process_payload, chunked_data))
+        payloads = list(executor.map(partial_process_payload, chunked_data))
     
     log.info("Queueing payload data")
     
