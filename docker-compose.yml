@@ -1,5 +1,9 @@
+networks:
+  apollo:
+    external: true
+
 services:
-  flask_app:
+  import_api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,3 +16,5 @@ services:
     volumes:
       - .:/app
     command: flask run --host=0.0.0.0
+    networks:
+      - apollo
